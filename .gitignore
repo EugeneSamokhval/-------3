@@ -1,5 +1,5 @@
 /tf.docx
-/venv
+/.venv
 /__pycache__
 /city_database
 /city.db
