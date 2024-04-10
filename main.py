@@ -1,8 +1,4 @@
-import copy
 import time
-from nltk.draw.util import CanvasFrame
-from nltk.draw import TreeWidget
-from kivy.app import App
 from kivy.uix.popup import Popup
 from kivy.metrics import dp
 from kivy.core.window import Window
@@ -18,8 +14,8 @@ from kivy.uix.label import Label
 from kivymd.uix.filemanager import MDFileManager
 from kivymd.toast import toast
 from kivymd.uix.stacklayout import MDStackLayout
-import nltk
-import os
+import networkx
+import matplotlib.pyplot as plt
 import lib_interactions
 
 
@@ -281,12 +277,13 @@ class MainScreen(MDScreen):
 
     def draw_tree(self, *args):
         edges = [result for result in filter(
-            lambda x: x[1] == args[0].text, args[0].table.row_data)][0][2]
-        tree = edges[0]
-        window = CanvasFrame(width=1920, height=1080)
-        tree_w = TreeWidget(window.canvas(), tree)
-        window.add_widget(tree_w, 10, 10)
-        window.mainloop()
+            lambda x: x[1] == args[0].text, args[0].table.row_data)][0][2][0]
+        graph = networkx.DiGraph()
+        for edge in edges:
+            graph.add_edge(edge[0], edge[2], label=edge[1])
+        plt.figure(figsize=(8, 6))
+        networkx.draw_networkx(graph, with_labels=True, font_weight="bold")
+        plt.show()
 
     def save_changes(self, *args):
         for entry in range(len(self.children[1].children[0].children[3].row_data)):
@@ -458,7 +455,7 @@ class MainScreen(MDScreen):
 
 
 class LInterface(MDApp):
-    title = "Система разбора текста"
+    title = "Система семантического разбора текста"
 
     def build(self):
         self.theme_cls.theme_style = "Dark"

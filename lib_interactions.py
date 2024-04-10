@@ -1,10 +1,11 @@
+from nltk.tokenize import sent_tokenize
+from nltk.tokenize import word_tokenize
+from nltk.corpus import stopwords
+import json
+from nltk.corpus import wordnet
 import nltk
 import docx
-import re
-import string
-from nltk.corpus import stopwords
-from nltk.tokenize import word_tokenize
-from nltk.tokenize import sent_tokenize
+import requests
 
 
 UNSHIPHER = {
@@ -72,27 +73,39 @@ def load_file(path: str) -> list:
     return raw_data
 
 
-def process_text(raw_data):
+def decompose_conceptnet_response(response):
+    edges = []
 
-    sentences = sent_tokenize(raw_data)
+    for edge in response['edges']:
+        start = edge['start']['label']
+        end = edge['end']['label']
+        relation = edge['rel']['label']
+        edges.append((start, relation, end))
+    return edges
+
+
+def process_text(raw_data):
+    nltk.download('stopwords')
+    stop_word = set(stopwords.words('english'))
+    for sign in signs:
+        stop_word.add(sign)
+    sentences = list(set(sent_tokenize(raw_data)))
     for sindex in range(len(sentences)):
         for sign in signs:
             if sign in sentences[sindex]:
                 sentences[sindex] = sentences[sindex].replace(sign, ' ')
+    for word in stop_word:
+        if word in sentences:
+            sentences.remove(word)
     sentence_dict = {sentence: [] for sentence in sentences}
-    grammar = nltk.RegexpParser('''
-    NP: {<DT>?<JJ>*<NN.*>}
-    P: {<IN>}           
-    V: {<V.*>}          
-    PP: {<P> <NP>}      
-    VP: {<V> <NP|PP>*}  
-    ADJP: {<JJ>}        
-    S: {<NP> <VP>}      
-    ''')
     for sentence in sentences:
-        tree = grammar.parse(nltk.pos_tag(
-            word_tokenize(sentence)))
-        sentence_dict[sentence].append(tree)
+        sent_words = word_tokenize(sentence.lower())
+        all_words = ''
+        for word in sent_words:
+            all_words += word+'&'
+        results = requests.get(
+            f'http://api.conceptnet.io//query?node=/c/en/{all_words}').json()
+        sentence_dict[sentence].append(decompose_conceptnet_response(results))
     result = []
     for sentence in sentence_dict.keys():
         result.append((sentence, sentence_dict.get(sentence)))
